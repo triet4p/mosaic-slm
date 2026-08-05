@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mosaic-slm"
+version = "0.1.0"
+description = "Multi-Agent Small Language Model system running on a single consumer GPU"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "numpy",
+    "pydantic>=2",
+    "PyYAML",
+]
+
+[project.optional-dependencies]
+serving = [
+    "openai",
+    "vllm",
+    "llama-cpp-python",
+]
+training = [
+    "torch",
+    "transformers",
+    "datasets",
+    "peft",
+    "trl",
+]
+memory = [
+    "kuzu",
+]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mosaic"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
