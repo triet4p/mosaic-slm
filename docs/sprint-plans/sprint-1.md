@@ -9,7 +9,7 @@ Xây supply-chain simulator deterministic, episode generator, tool API và singl
 Status legend: [ ] pending / [~] in progress / [x] done
 
 - [x] 1. **Domain models:** pydantic schemas cho Product, Warehouse, Supplier, CustomerRegion, SKUState, PurchaseOrder, CustomerOrder, Shipment, DisruptionEvent trong `src/mosaic/simulator/models.py`.
-- [ ] 2. **Demand generator:** sinh demand hằng ngày theo product/region (base + seasonality + noise), deterministic theo seed; hỗ trợ demand spike/drop từ disruption.
+- [x] 2. **Demand generator:** sinh demand hằng ngày theo product/region (base + seasonality + noise), deterministic theo seed; hỗ trợ demand spike/drop từ disruption.
 - [ ] 3. **Supplier behavior:** lead time (base/current), reliability score, capacity; logic giao trễ và hủy đơn theo disruption.
 - [ ] 4. **Simulator core:** vòng lặp hằng ngày — fulfill demand → backorder/stockout → di chuyển shipment → nhận purchase order → cập nhật state; ghi cost đầy đủ.
 - [ ] 5. **Action executor:** validate và áp dụng 6 business action (NO_ACTION, PLACE_ORDER, TRANSFER_STOCK, SWITCH_SUPPLIER, ADJUST_SAFETY_STOCK, ACCEPT_BACKORDER) với cost tương ứng.
