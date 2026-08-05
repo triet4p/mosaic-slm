@@ -57,12 +57,13 @@ class AgentDecision(BaseModel):
 
 
 class TrajectoryStep(BaseModel):
-    """Bản ghi một bước của trajectory."""
+    """Bản ghi một bước của trajectory (state snapshot tại thời điểm quan sát)."""
 
     model_config = ConfigDict(extra="forbid")
 
     day: int = Field(ge=1)
     observation: str
+    state_snapshot: SimulationState
     tool_calls: list[ToolCallRecord]
     actions: list[BusinessAction]
     day_reward: RewardBreakdown
@@ -73,6 +74,7 @@ class RunnerResult(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    episode_seed: int
     final_state: SimulationState
     trajectory: list[TrajectoryStep]
     business_reward: float
@@ -165,6 +167,7 @@ class SingleAgentRunner:
         trajectory: list[TrajectoryStep] = []
         for _ in range(self._episode.config.num_days):
             day_costs = self._simulator.advance_day()
+            state_snapshot = self._simulator.state.model_copy(deep=True)
             observation = build_observation(self._simulator)
             decision = self._backbone.decide(observation, self._tools)
             for call in decision.tool_calls:
@@ -177,6 +180,7 @@ class SingleAgentRunner:
                 TrajectoryStep(
                     day=self._simulator.state.day,
                     observation=observation,
+                    state_snapshot=state_snapshot,
                     tool_calls=decision.tool_calls,
                     actions=decision.actions,
                     day_reward=self._reward_calculator.day_reward(day_costs),
@@ -184,6 +188,7 @@ class SingleAgentRunner:
             )
         breakdown = self._reward_calculator.business_reward(self._simulator.state)
         return RunnerResult(
+            episode_seed=self._episode.seed,
             final_state=self._simulator.state,
             trajectory=trajectory,
             business_reward=breakdown.reward,
