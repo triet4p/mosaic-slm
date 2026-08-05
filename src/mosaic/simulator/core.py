@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from mosaic.simulator.demand import DemandSchedule
 from mosaic.simulator.models import (
     DisruptionEvent,
+    DisruptionType,
     OrderStatus,
     PurchaseOrder,
     Shipment,
@@ -149,6 +150,7 @@ class Simulator:
             raise ValueError(f"Episode đã kết thúc sau {self._config.num_days} ngày")
         self._state.day += 1
         day = self._state.day
+        self._apply_active_disruptions(day)
         costs = self._merge_costs(CostLedger(), self._pending_costs)
         self._pending_costs = CostLedger()
         late_deliveries = self._receive_purchase_orders(day, costs)
@@ -226,6 +228,9 @@ class Simulator:
             )
         source.on_hand -= quantity
         source.in_transit += quantity
+        transport_cost = (
+            quantity * route.cost_per_unit * self._active_transport_cost_multiplier(route)
+        )
         shipment = Shipment(
             shipment_id=f"SHP-{self._config.seed}-{len(self._state.shipments) + 1}",
             source=source_warehouse,
@@ -235,10 +240,10 @@ class Simulator:
             dispatch_time=self._state.day,
             expected_arrival=self._state.day + route.current_travel_time,
             actual_arrival=self._state.day + route.current_travel_time,
-            transport_cost=quantity * route.cost_per_unit,
+            transport_cost=transport_cost,
         )
         self._state.shipments.append(shipment)
-        self._pending_costs.transport_cost += shipment.transport_cost
+        self._pending_costs.transport_cost += transport_cost
         return shipment
 
     def add_pending_costs(self, costs: CostLedger) -> None:
@@ -300,6 +305,80 @@ class Simulator:
                 )
             assignments[sku_id] = supplier_id
         return assignments
+
+    def _apply_active_disruptions(self, day: int) -> None:
+        """Cập nhật tác động disruption đang hoạt động vào ngày hiện tại.
+
+        SUPPLIER_DELAY / TRANSPORT_DELAY: cộng extra_days vào current lead
+        time / travel time (reset về base mỗi ngày rồi áp dụng lại).
+        WAREHOUSE_STOCKOUT: trừ units khỏi on_hand các SKU tại kho, một lần
+        vào đúng ngày bắt đầu. DEMAND_SPIKE/DROP và SUPPLIER_CANCELLATION
+        được xử lý lần lượt ở demand generator và supplier behavior.
+        """
+        self._refresh_dynamic_parameters()
+        for event in self._config.disruptions:
+            if not event.start_day <= day:
+                continue
+            if event.end_day is not None and day > event.end_day:
+                continue
+            if event.type is DisruptionType.SUPPLIER_DELAY and event.subject_type == "supplier":
+                supplier = self._state.suppliers.get(event.subject_id)
+                if supplier is not None:
+                    extra_days = self._int_param(event, "extra_days", default=0)
+                    supplier.current_lead_time = supplier.base_lead_time + extra_days
+            elif event.type is DisruptionType.TRANSPORT_DELAY and event.subject_type == "route":
+                route = self._state.routes.get(event.subject_id)
+                if route is not None:
+                    extra_days = self._int_param(event, "extra_days", default=0)
+                    route.current_travel_time = route.base_travel_time + extra_days
+            elif event.type is DisruptionType.WAREHOUSE_STOCKOUT and day == event.start_day:
+                self._apply_warehouse_stockout(event)
+
+    def _refresh_dynamic_parameters(self) -> None:
+        for supplier in self._state.suppliers.values():
+            supplier.current_lead_time = supplier.base_lead_time
+        for route in self._state.routes.values():
+            route.current_travel_time = route.base_travel_time
+
+    def _apply_warehouse_stockout(self, event: DisruptionEvent) -> None:
+        units = self._int_param(event, "units", default=100)
+        affected = [
+            (sku_id, warehouse_id)
+            for sku_id, warehouse_id in self._state.sku_states
+            if warehouse_id == event.subject_id
+        ]
+        for sku_id, warehouse_id in affected:
+            state = self._state.sku_states[(sku_id, warehouse_id)]
+            removed = min(units, state.on_hand)
+            state.on_hand -= removed
+
+    def _active_transport_cost_multiplier(self, route: TransportRoute) -> float:
+        multiplier = 1.0
+        for event in self._config.disruptions:
+            if event.type is not DisruptionType.TRANSPORT_DELAY:
+                continue
+            if event.subject_type != "route" or event.subject_id != route.route_id:
+                continue
+            if not event.start_day <= self._state.day:
+                continue
+            if event.end_day is not None and self._state.day > event.end_day:
+                continue
+            multiplier *= self._float_param(event, "cost_multiplier", default=1.0)
+        return multiplier
+
+    @staticmethod
+    def _int_param(event: DisruptionEvent, name: str, default: int) -> int:
+        value = event.params.get(name, default)
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"Disruption {event.disruption_id} thiếu tham số '{name}' kiểu số")
+        return int(value)
+
+    @staticmethod
+    def _float_param(event: DisruptionEvent, name: str, default: float) -> float:
+        value = event.params.get(name, default)
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"Disruption {event.disruption_id} thiếu tham số '{name}' kiểu số")
+        return float(value)
 
     def _receive_purchase_orders(self, day: int, costs: CostLedger) -> int:
         late_deliveries = 0
