@@ -19,9 +19,7 @@ from collections.abc import Sequence
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from mosaic.simulator.models import DisruptionEvent, DisruptionType
-
-JsonScalar = str | int | float | bool
+from mosaic.simulator.models import DisruptionEvent, DisruptionType, JsonScalar
 
 DIFFICULTY_LEVELS = frozenset({1, 2, 3})
 
