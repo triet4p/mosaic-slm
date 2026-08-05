@@ -13,7 +13,7 @@ Status legend: [ ] pending / [~] in progress / [x] done
 - [x] 3. **Supplier behavior:** lead time (base/current), reliability score, capacity; logic giao trễ và hủy đơn theo disruption.
 - [x] 4. **Simulator core:** vòng lặp hằng ngày — fulfill demand → backorder/stockout → di chuyển shipment → nhận purchase order → cập nhật state; ghi cost đầy đủ.
 - [x] 5. **Action executor:** validate và áp dụng 6 business action (NO_ACTION, PLACE_ORDER, TRANSFER_STOCK, SWITCH_SUPPLIER, ADJUST_SAFETY_STOCK, ACCEPT_BACKORDER) với cost tương ứng.
-- [ ] 6. **Reward function:** business reward theo công thức khóa (stockout + holding + ordering + transport + late + switch, cộng service bonus), deterministic với cùng state/action/seed.
+- [x] 6. **Reward function:** business reward theo công thức khóa (stockout + holding + ordering + transport + late + switch, cộng service bonus), deterministic với cùng state/action/seed.
 - [ ] 7. **Disruption engine:** 6 loại sự kiện, lịch trình theo difficulty level 1–3, tích hợp vào episode.
 - [ ] 8. **Episode generator:** sinh episode từ config (30 ngày, 20 SKU, 3 kho, 2 supplier, 1–5 disruption) theo seed; tạo dev set 100 episodes; cấu hình YAML trong `configs/environment/`.
 - [ ] 9. **Replay:** serialize episode + tái chạy bit-identical không cần dịch vụ bên ngoài.
