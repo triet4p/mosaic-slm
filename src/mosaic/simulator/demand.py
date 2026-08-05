@@ -26,7 +26,9 @@ class DemandProfile(BaseModel):
 
     region_id: str
     product_id: str
-    base_demand: float = Field(gt=0.0, description="Nhu cầu trung bình mỗi ngày")
+    base_demand: float = Field(
+        ge=0.0, description="Nhu cầu trung bình mỗi ngày; 0 = không có demand"
+    )
     seasonality_amplitude: float = Field(
         ge=0.0, le=1.0, default=0.0, description="Biên độ mùa vụ, tính theo phần của base_demand"
     )
