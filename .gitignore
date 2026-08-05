@@ -34,3 +34,6 @@ dashboards/*
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+.python-version
+artifacts/
