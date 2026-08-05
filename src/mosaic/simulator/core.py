@@ -72,6 +72,10 @@ def _empty_disruptions() -> list[DisruptionEvent]:
     return []
 
 
+def _empty_assignments() -> dict[str, str]:
+    return {}
+
+
 class SimulationState(BaseModel):
     """Trạng thái hiện tại của mô phỏng."""
 
@@ -81,6 +85,9 @@ class SimulationState(BaseModel):
     sku_states: dict[tuple[str, str], SKUState]
     suppliers: dict[str, Supplier]
     routes: dict[str, TransportRoute]
+    supplier_assignments: dict[str, str] = Field(
+        default_factory=_empty_assignments, description="sku_id -> supplier_id đang cung cấp"
+    )
     purchase_orders: list[PurchaseOrder] = Field(default_factory=_empty_purchase_orders)
     shipments: list[Shipment] = Field(default_factory=_empty_shipments)
     ledger: list[DayCosts] = Field(default_factory=_empty_day_costs)
@@ -100,7 +107,12 @@ class SimulatorConfig(BaseModel):
     initial_sku_states: list[SKUState]
     demand_schedule: DemandSchedule
     disruptions: list[DisruptionEvent] = Field(default_factory=_empty_disruptions)
+    initial_supplier_assignments: dict[str, str] = Field(
+        default_factory=_empty_assignments,
+        description="sku_id -> supplier_id; bỏ trống nếu mỗi SKU chỉ có một supplier hỗ trợ",
+    )
     late_delivery_penalty_per_day: float = Field(ge=0.0, default=5.0)
+    supplier_switch_cost: float = Field(ge=0.0, default=100.0)
 
 
 class Simulator:
@@ -111,15 +123,25 @@ class Simulator:
         self._supplier_behavior = supplier_behavior
         self._pending_costs = CostLedger()
         self._validate_config()
+        assignments = self._resolve_supplier_assignments()
         self._state = SimulationState(
             sku_states={(s.sku_id, s.warehouse_id): s for s in config.initial_sku_states},
             suppliers={s.supplier_id: s for s in config.suppliers},
             routes={r.route_id: r for r in config.routes},
+            supplier_assignments=assignments,
         )
 
     @property
     def state(self) -> SimulationState:
         return self._state
+
+    @property
+    def config(self) -> SimulatorConfig:
+        return self._config
+
+    @property
+    def supplier_switch_cost(self) -> float:
+        return self._config.supplier_switch_cost
 
     def advance_day(self) -> DayCosts:
         """Tiến một ngày và trả về chi phí của ngày đó."""
@@ -249,6 +271,35 @@ class Simulator:
                     f"Route {route.route_id} kết thúc tại kho không tồn tại "
                     f"{route.destination_warehouse}"
                 )
+
+    def _resolve_supplier_assignments(self) -> dict[str, str]:
+        sku_ids = {state.sku_id for state in self._config.initial_sku_states}
+        for day in self._config.demand_schedule.days:
+            for products in day.quantities.values():
+                sku_ids.update(products)
+        assignments: dict[str, str] = {}
+        for sku_id in sorted(sku_ids):
+            if sku_id in self._config.initial_supplier_assignments:
+                supplier_id = self._config.initial_supplier_assignments[sku_id]
+            else:
+                supporting = [
+                    s.supplier_id for s in self._config.suppliers if sku_id in s.supported_skus
+                ]
+                if len(supporting) != 1:
+                    raise ValueError(
+                        f"SKU {sku_id} cần khai báo initial_supplier_assignment: "
+                        f"có {len(supporting)} supplier hỗ trợ ({sorted(supporting)})"
+                    )
+                supplier_id = supporting[0]
+            supplier = next(
+                (s for s in self._config.suppliers if s.supplier_id == supplier_id), None
+            )
+            if supplier is None or sku_id not in supplier.supported_skus:
+                raise ValueError(
+                    f"Supplier {supplier_id} không hỗ trợ SKU {sku_id} trong assignment"
+                )
+            assignments[sku_id] = supplier_id
+        return assignments
 
     def _receive_purchase_orders(self, day: int, costs: CostLedger) -> int:
         late_deliveries = 0
