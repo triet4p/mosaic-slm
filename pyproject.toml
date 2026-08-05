@@ -31,10 +31,12 @@ training = [
 memory = [
     "kuzu",
 ]
+
+[dependency-groups]
 dev = [
     "pytest",
     "ruff",
-    "mypy",
+    "pyright",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -50,7 +52,3 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP"]
-
-[tool.mypy]
-python_version = "3.13"
-strict = true
