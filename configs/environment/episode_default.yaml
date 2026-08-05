@@ -1,0 +1,15 @@
+# Cấu hình mặc định cho episode generator (mục 13 INITIALIZATION.md).
+# MVP: 30 ngày, 3 kho, 2 supplier, 20 sản phẩm, 3 region, 1–5 disruptions.
+num_days: 30
+num_regions: 3
+num_warehouses: 3
+num_suppliers: 2
+num_products: 20
+min_disruptions: 1
+max_disruptions: 5
+difficulty: 2
+min_demand: 5
+max_demand: 30
+seasonality_amplitude: 0.15
+late_delivery_penalty_per_day: 5.0
+supplier_switch_cost: 100.0
