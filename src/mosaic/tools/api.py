@@ -288,6 +288,11 @@ class ToolRunner:
         self._register_all()
 
     @property
+    def context(self) -> ToolContext:
+        """Ngữ cảnh (simulator + reward calculator) cho backbone đọc state."""
+        return self._context
+
+    @property
     def specs(self) -> list[ToolSpec]:
         """Khai báo tool (JSON schema) cho LLM."""
         return [

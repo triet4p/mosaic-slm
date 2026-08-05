@@ -19,7 +19,7 @@ Status legend: [ ] pending / [~] in progress / [x] done
 - [x] 9. **Replay:** serialize episode + tái chạy bit-identical không cần dịch vụ bên ngoài.
 - [x] 10. **Tool API:** read tools (get_inventory_state, get_demand_history, get_supplier_status, get_open_orders, get_shipments) và compute tools (forecast_demand, calculate_reorder_point, calculate_transfer_cost, calculate_order_cost, simulate_action).
 - [x] 11. **Heuristic baselines:** do-nothing, reorder-point, greedy transfer, oracle (full simulator state) — cần để normalize NTC.
-- [ ] 12. **Single-agent runner:** vòng lặp agent (quan sát → tool call → action) với backbone pluggable; mặc định rule-based, interface OpenAI-compatible để swap vLLM ở Phase 4; ghi trajectory mỗi bước.
+- [x] 12. **Single-agent runner:** vòng lặp agent (quan sát → tool call → action) với backbone pluggable; mặc định rule-based, interface OpenAI-compatible để swap vLLM ở Phase 4; ghi trajectory mỗi bước.
 - [ ] 13. **Trajectory store:** lưu state/action/tool_call/reward mỗi bước ra JSONL theo episode trong `data/trajectories/`.
 - [ ] 14. **Evaluation script:** tính NTC (normalize giữa oracle và heuristic baseline), cost breakdown, fill rate, stockout rate; xuất report trong `data/results/`.
 - [ ] 15. **Tests:** unit (demand determinism, action validation, reward math, replay) + integration (một episode end-to-end hoàn chỉnh).

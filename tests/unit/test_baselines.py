@@ -12,7 +12,7 @@ from mosaic.simulator.baselines import (
 from mosaic.simulator.core import Simulator, SimulatorConfig
 from mosaic.simulator.demand import DemandGenerator, DemandProfile
 from mosaic.simulator.episodes import EpisodeGenerator, EpisodeGeneratorConfig
-from mosaic.simulator.models import SKUState, Supplier, Warehouse
+from mosaic.simulator.models import SKUState, Supplier, TransportRoute, Warehouse
 from mosaic.simulator.supplier import SupplierBehavior
 
 SPEC = EpisodeGeneratorConfig(difficulty=1)
@@ -104,7 +104,16 @@ def test_greedy_transfer_proposes_transfer_when_surplus_and_deficit_exist():
                     capacity=500,
                 )
             ],
-            routes=[],
+            routes=[
+                TransportRoute(
+                    route_id="RTE_21",
+                    source_warehouse="WH2",
+                    destination_warehouse="WH1",
+                    base_travel_time=1,
+                    current_travel_time=1,
+                    cost_per_unit=0.5,
+                )
+            ],
             initial_sku_states=[
                 SKUState(
                     sku_id="SKU001",

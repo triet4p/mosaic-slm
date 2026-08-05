@@ -102,6 +102,9 @@ class GreedyTransferPolicy:
 
     def decide(self, simulator: Simulator) -> Sequence[BusinessAction]:
         state = simulator.state
+        route_pairs = {
+            (route.source_warehouse, route.destination_warehouse) for route in state.routes.values()
+        }
         sku_ids = {sku_id for sku_id, _ in state.sku_states}
         actions: list[BusinessAction] = []
         for sku_id in sorted(sku_ids):
@@ -113,6 +116,8 @@ class GreedyTransferPolicy:
                     continue
                 for surplus_warehouse in warehouses:
                     if surplus_warehouse == deficit_warehouse:
+                        continue
+                    if (surplus_warehouse, deficit_warehouse) not in route_pairs:
                         continue
                     surplus = state.sku_states[(sku_id, surplus_warehouse)]
                     excess = surplus.available - surplus.reorder_point
