@@ -16,7 +16,7 @@ Status legend: [ ] pending / [~] in progress / [x] done
 - [x] 6. **Reward function:** business reward theo công thức khóa (stockout + holding + ordering + transport + late + switch, cộng service bonus), deterministic với cùng state/action/seed.
 - [x] 7. **Disruption engine:** 6 loại sự kiện, lịch trình theo difficulty level 1–3, tích hợp vào episode.
 - [x] 8. **Episode generator:** sinh episode từ config (30 ngày, 20 SKU, 3 kho, 2 supplier, 1–5 disruption) theo seed; tạo dev set 100 episodes; cấu hình YAML trong `configs/environment/`.
-- [ ] 9. **Replay:** serialize episode + tái chạy bit-identical không cần dịch vụ bên ngoài.
+- [x] 9. **Replay:** serialize episode + tái chạy bit-identical không cần dịch vụ bên ngoài.
 - [ ] 10. **Tool API:** read tools (get_inventory_state, get_demand_history, get_supplier_status, get_open_orders, get_shipments) và compute tools (forecast_demand, calculate_reorder_point, calculate_transfer_cost, calculate_order_cost, simulate_action).
 - [ ] 11. **Heuristic baselines:** do-nothing, reorder-point, greedy transfer, oracle (full simulator state) — cần để normalize NTC.
 - [ ] 12. **Single-agent runner:** vòng lặp agent (quan sát → tool call → action) với backbone pluggable; mặc định rule-based, interface OpenAI-compatible để swap vLLM ở Phase 4; ghi trajectory mỗi bước.

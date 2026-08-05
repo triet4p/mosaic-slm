@@ -126,9 +126,12 @@ class Simulator:
         self._validate_config()
         assignments = self._resolve_supplier_assignments()
         self._state = SimulationState(
-            sku_states={(s.sku_id, s.warehouse_id): s for s in config.initial_sku_states},
-            suppliers={s.supplier_id: s for s in config.suppliers},
-            routes={r.route_id: r for r in config.routes},
+            sku_states={
+                (s.sku_id, s.warehouse_id): s.model_copy(deep=True)
+                for s in config.initial_sku_states
+            },
+            suppliers={s.supplier_id: s.model_copy(deep=True) for s in config.suppliers},
+            routes={r.route_id: r.model_copy(deep=True) for r in config.routes},
             supplier_assignments=assignments,
         )
 
@@ -437,7 +440,7 @@ class Simulator:
             costs.holding_cost += state.on_hand * state.holding_cost
 
     def _find_route(self, source: str, destination: str) -> TransportRoute | None:
-        for route in self._config.routes:
+        for route in self._state.routes.values():
             if route.source_warehouse == source and route.destination_warehouse == destination:
                 return route
         return None
