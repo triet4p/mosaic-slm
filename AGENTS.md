@@ -15,8 +15,6 @@ Read `.agents/memory/decisions.md` before architecture or technology changes. Us
 
 ## Project Structure
 
-You can use `$graphify` or `/graphify` to understand codebase.
-
 For document structure, see [`README.md`](./docs/README.md).
 
 For agent guideline, see [`.agents`](./.agents) folder.
@@ -43,6 +41,3 @@ git diff --check
 ## Testing and Review
 
 PRs should state intent, affected boundaries, validation evidence, and unresolved risks. Reference the applicable rules instead of restating them. Never commit secrets, credentials, sensitive payloads, or production data.
-
-## Graphify
-You should use graphify to understand codebase more effiency, instead of scan all codebase. See `$graphify` skills
