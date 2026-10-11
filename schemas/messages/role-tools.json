@@ -1,8 +1,7 @@
 {
   "demand": [
     "forecast_demand",
-    "get_demand_history",
-    "simulate_action"
+    "get_demand_history"
   ],
   "inventory": [
     "calculate_reorder_point",

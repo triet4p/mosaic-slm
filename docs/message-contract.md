@@ -7,7 +7,8 @@ trong `schemas/messages/`.
 
 ## Roles
 
-- `demand`: phan tich lich su nhu cau, du bao ngan han, de xuat dat hang.
+- `demand`: phan tich lich su nhu cau, du bao ngan han va demand risk; chi
+  doc/forecast, khong thuc thi action.
 - `inventory`: theo doi vi the ton kho, rui ro stockout, de xuat rebalancing.
 - `supplier_risk`: theo doi lead time/reliability/disruption, de xuat dat
   hang hoac doi supplier.
@@ -44,7 +45,7 @@ va `decision.recommendation_ids` tham chieu `recommendation.message_id`.
 Bang quyen duoc cong bo trong `schemas/messages/role-tools.json` va kiem
 chung bang `role_tool_permissions()`:
 
-- `demand`: `forecast_demand`, `get_demand_history`, `simulate_action`.
+- `demand`: `forecast_demand`, `get_demand_history` (read-only).
 - `inventory`: `calculate_reorder_point`, `calculate_transfer_cost`,
   `get_inventory_state`, `get_shipments`, `simulate_action`.
 - `supplier_risk`: `calculate_order_cost`, `get_open_orders`,
@@ -96,3 +97,28 @@ for action in executable_actions(decision):
     executor.apply(action)
 executable_actions(recommendation)  # raise TypeError
 ```
+
+## Demand Agent
+
+`DemandAgent` (`mosaic.agents.demand`) is the deterministic, non-LLM baseline
+for the demand analyst. It accepts an `AnalystRequest` and the active
+`ToolRunner`, then returns the existing `AnalystRecommendation` contract:
+
+```python
+from mosaic.agents.demand import DemandAgent
+
+recommendation = DemandAgent().recommend(request, tool_runner)
+```
+
+The request must target `demand` and match the active episode seed/day (the
+first-day request may be made before day 1 has been advanced). The analyst
+records `get_demand_history` for up to seven observed days and requests a
+three-day projection from `forecast_demand` (its five-day calculation window).
+Forecast values come only from that tool. A current-day value at least 1.5 times
+the prior observed mean is flagged as a spike; at most 0.7 times is a drop.
+Risk classification is unavailable without both a current-day and earlier
+observation. The analyst never reads future scheduled demand, mutates simulator
+state/configuration, or executes a business action. Demand-role permissions
+reject `simulate_action` at both tool-call and recommendation-evidence
+validation boundaries. Its `NO_ACTION` proposal leaves any business action to
+the Coordinator after analyst review.

@@ -78,8 +78,8 @@ UNIMPLEMENTED_MEMORY_TOOLS: frozenset[str] = frozenset(
 )
 
 _ROLE_TOOL_MAP: dict[AgentRole, frozenset[str]] = {
-    # Demand: doc/predict demand + what-if cho de xuat cua minh.
-    AgentRole.DEMAND: frozenset({"get_demand_history", "forecast_demand", "simulate_action"}),
+    # Demand: read-only demand history and forecast; no simulation/action tool.
+    AgentRole.DEMAND: frozenset({"get_demand_history", "forecast_demand"}),
     # Inventory: vi the ton kho/chuyen hang/reorder/transfer + what-if.
     AgentRole.INVENTORY: frozenset(
         {

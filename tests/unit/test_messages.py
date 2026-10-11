@@ -284,7 +284,6 @@ def test_role_permissions_cover_expected_sets_without_memory_tools() -> None:
     assert set(permissions["demand"]) == {
         "forecast_demand",
         "get_demand_history",
-        "simulate_action",
     }
     assert set(permissions["inventory"]) == {
         "calculate_reorder_point",
