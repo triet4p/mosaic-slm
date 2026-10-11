@@ -247,8 +247,8 @@ def _calculate_transfer_cost(
         raise ValueError(
             f"Không có tuyến vận chuyển {params.source_warehouse} -> {params.destination_warehouse}"
         )
-    cost = params.quantity * route.cost_per_unit
-    return {"transfer_cost": round(cost, 2), "travel_time_days": route.current_travel_time}
+    cost = context.simulator.calculate_transfer_cost(route, params.quantity)
+    return {"transfer_cost": cost, "travel_time_days": route.current_travel_time}
 
 
 def _calculate_order_cost(

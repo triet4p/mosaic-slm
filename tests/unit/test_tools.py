@@ -1,18 +1,20 @@
+from copy import deepcopy
 from typing import Any, cast
 
 import pytest
 
 from mosaic.simulator.actions import ActionExecutor, PlaceOrder, TransferStock
 from mosaic.simulator.core import Simulator
-from mosaic.simulator.episodes import EpisodeGenerator, EpisodeGeneratorConfig
+from mosaic.simulator.episodes import Episode, EpisodeGenerator, EpisodeGeneratorConfig
+from mosaic.simulator.models import DisruptionEvent, DisruptionType
 from mosaic.simulator.supplier import SupplierBehavior
 from mosaic.tools.api import ToolContext, ToolRunner
 
 SPEC = EpisodeGeneratorConfig(difficulty=1)
 
 
-def make_runner(days: int = 3) -> tuple[ToolRunner, ToolContext]:
-    episode = EpisodeGenerator(SPEC).generate(seed=1)
+def make_runner(days: int = 3, episode: Episode | None = None) -> tuple[ToolRunner, ToolContext]:
+    episode = episode or EpisodeGenerator(SPEC).generate(seed=1)
     simulator = Simulator(
         episode.config,
         supplier_behavior=SupplierBehavior(
@@ -155,6 +157,74 @@ def test_calculate_transfer_cost_uses_route():
     )
     assert payload["transfer_cost"] > 0
     assert payload["travel_time_days"] == 2
+
+
+@pytest.mark.parametrize(
+    ("disruption_window", "expected_cost", "expected_travel_time"),
+    [
+        (None, 4.0, 2),
+        ((1, 3), 16.0, 3),
+        ((1, 2), 4.0, 2),
+    ],
+    ids=("ordinary", "active-disruption", "expired-disruption"),
+)
+def test_calculate_transfer_cost_matches_dispatch_for_current_route_state(
+    disruption_window: tuple[int, int] | None,
+    expected_cost: float,
+    expected_travel_time: int,
+) -> None:
+    generated = EpisodeGenerator(SPEC).generate(seed=1)
+    route = next(
+        route
+        for route in generated.config.routes
+        if (route.source_warehouse, route.destination_warehouse) == ("WH1", "WH2")
+    )
+    disruptions: list[DisruptionEvent] = []
+    if disruption_window is not None:
+        start_day, end_day = disruption_window
+        disruptions.append(
+            DisruptionEvent(
+                disruption_id="D-TRANSPORT-COST",
+                type=DisruptionType.TRANSPORT_DELAY,
+                start_day=start_day,
+                end_day=end_day,
+                subject_type="route",
+                subject_id=route.route_id,
+                params={"extra_days": 1, "cost_multiplier": 4.0},
+            )
+        )
+    config = generated.config.model_copy(update={"disruptions": disruptions})
+    episode = generated.model_copy(update={"config": config})
+    runner, context = make_runner(episode=episode)
+    simulator = context.simulator
+    source_state = simulator.state.sku_states[("SKU001", "WH1")]
+    source_state.on_hand = 100
+    source_state.reserved = 0
+    args: dict[str, object] = {
+        "source_warehouse": "WH1",
+        "destination_warehouse": "WH2",
+        "sku_id": "SKU001",
+        "quantity": 10,
+    }
+    before_state = simulator.state.model_dump()
+    before_config = simulator.config.model_dump()
+
+    quote = ok_payload(runner.run("calculate_transfer_cost", args))
+
+    copied_simulator = deepcopy(simulator)
+    ActionExecutor(copied_simulator).apply(
+        TransferStock(
+            source_warehouse="WH1",
+            destination_warehouse="WH2",
+            sku_id="SKU001",
+            quantity=10,
+        )
+    )
+    shipment = copied_simulator.state.shipments[-1]
+    assert quote["transfer_cost"] == expected_cost == shipment.transport_cost
+    assert quote["travel_time_days"] == expected_travel_time
+    assert simulator.state.model_dump() == before_state
+    assert simulator.config.model_dump() == before_config
 
 
 def test_calculate_transfer_cost_rejects_missing_route():

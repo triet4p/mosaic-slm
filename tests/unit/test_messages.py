@@ -288,9 +288,11 @@ def test_role_permissions_cover_expected_sets_without_memory_tools() -> None:
     assert set(permissions["inventory"]) == {
         "calculate_reorder_point",
         "calculate_transfer_cost",
+        "forecast_demand",
+        "get_demand_history",
         "get_inventory_state",
+        "get_open_orders",
         "get_shipments",
-        "simulate_action",
     }
     assert set(permissions["supplier_risk"]) == {
         "calculate_order_cost",

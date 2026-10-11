@@ -6,9 +6,11 @@
   "inventory": [
     "calculate_reorder_point",
     "calculate_transfer_cost",
+    "forecast_demand",
+    "get_demand_history",
     "get_inventory_state",
-    "get_shipments",
-    "simulate_action"
+    "get_open_orders",
+    "get_shipments"
   ],
   "supplier_risk": [
     "calculate_order_cost",

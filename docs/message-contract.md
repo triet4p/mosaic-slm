@@ -47,7 +47,8 @@ chung bang `role_tool_permissions()`:
 
 - `demand`: `forecast_demand`, `get_demand_history` (read-only).
 - `inventory`: `calculate_reorder_point`, `calculate_transfer_cost`,
-  `get_inventory_state`, `get_shipments`, `simulate_action`.
+  `forecast_demand`, `get_demand_history`, `get_inventory_state`,
+  `get_open_orders`, `get_shipments` (read-only; no `simulate_action`).
 - `supplier_risk`: `calculate_order_cost`, `get_open_orders`,
   `get_supplier_status`, `simulate_action`.
 - `coordinator`: toan quyen 10 tool da trien khai.
@@ -122,3 +123,52 @@ state/configuration, or executes a business action. Demand-role permissions
 reject `simulate_action` at both tool-call and recommendation-evidence
 validation boundaries. Its `NO_ACTION` proposal leaves any business action to
 the Coordinator after analyst review.
+
+## Inventory Agent
+
+`InventoryAgent` (`mosaic.agents.inventory`) is the deterministic, non-LLM
+baseline for the inventory analyst. It accepts an `AnalystRequest` and active
+`ToolRunner`, returning the existing `AnalystRecommendation` contract.
+
+The request must target `inventory` and match the active episode seed/day (a
+day-1 request may be made before the first advance). The analyst reads observed
+demand history, requests a moving-average projection from `forecast_demand`,
+reads inventory, open orders, and shipments, and obtains route-specific reorder
+points and transfer quotes from their existing tools. It counts pending
+purchase orders and in-flight shipments arriving by the candidate transfer ETA
+when assessing inventory position. Route validity, reorder thresholds, and
+transfer cost come from tool results; it does not read future demand or route
+configuration directly.
+
+The first forecast value for each observed SKU/region pair is summed into a
+SKU-level daily demand estimate and passed to the reorder-point tool. Because
+the exposed tools do not provide a region-to-warehouse mapping, that aggregate
+is used as a conservative per-warehouse screening bound rather than reading
+warehouse routing/configuration directly.
+
+A transfer is proposed only when destination position is below the
+tool-calculated reorder point and the source has available surplus above its
+own route-specific reorder point. The proposed quantity is capped at the
+destination's tool-reported safety-stock shortfall. The exact transfer-cost
+quote must be lower than the estimated one-day stockout exposure (`quantity ×
+destination stockout cost per unit`). This cost comparison is a transparent
+screening estimate, not a simulated outcome.
+
+The transfer-cost tool returns the simulator's current route charge, including
+any active `TRANSPORT_DELAY` cost multiplier. It shares the simulator's
+authoritative transport-cost calculation with shipment dispatch, so the quote
+matches the current route's action cost. This remains a screening estimate,
+not a simulated outcome.
+
+Missing routes, insufficient source stock, inbound stock, unavailable forecasts,
+or a quote at least as large as the estimate result in a truthful `NO_ACTION`
+proposal. Inventory-role permissions reject `simulate_action` both when the
+analyst calls tools and when validating recommendation evidence. The analyst
+only proposes actions: it has no action executor and never mutates simulator
+state/configuration.
+
+```python
+from mosaic.agents.inventory import InventoryAgent
+
+recommendation = InventoryAgent().recommend(request, tool_runner)
+```

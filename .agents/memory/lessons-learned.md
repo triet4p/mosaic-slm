@@ -29,3 +29,10 @@
 **Fix / workaround:** Khai báo subclass `class Args(argparse.Namespace): episode_file: str; index: int` và gọi `parser.parse_args(namespace=Args())`.
 
 **Watch out for:** Mọi script dùng argparse trong repo này phải dùng typed Namespace pattern này.
+
+## [2026-10-11] Transfer-cost quotes omitted active disruption charges
+
+**Symptom:** The Inventory Agent could receive a transfer quote below the avoided stockout exposure even though dispatch charged more on an actively disrupted route.
+**Root cause:** The transfer-cost tool and `Simulator.dispatch_shipment` computed cost separately; only dispatch applied the active `TRANSPORT_DELAY` cost multiplier.
+**Fix / workaround:** Use the simulator's shared `calculate_transfer_cost` computation for both the tool quote and dispatched shipment, including current-day active disruption multipliers.
+**Watch out for:** Any state-dependent cost quote must match the actual dispatch path for ordinary, active-disruption, and expired-disruption states.

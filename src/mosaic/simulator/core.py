@@ -212,6 +212,14 @@ class Simulator:
         self._pending_costs.ordering_cost += supplier.order_cost
         return order
 
+    def calculate_transfer_cost(self, route: TransportRoute, quantity: int) -> float:
+        """Return the rounded current-state route charge."""
+        if quantity <= 0:
+            raise ValueError("quantity phải lớn hơn 0")
+        return round(
+            quantity * route.cost_per_unit * self._active_transport_cost_multiplier(route), 2
+        )
+
     def dispatch_shipment(
         self, source_warehouse: str, destination_warehouse: str, sku_id: str, quantity: int
     ) -> Shipment:
@@ -231,9 +239,7 @@ class Simulator:
             )
         source.on_hand -= quantity
         source.in_transit += quantity
-        transport_cost = (
-            quantity * route.cost_per_unit * self._active_transport_cost_multiplier(route)
-        )
+        transport_cost = self.calculate_transfer_cost(route, quantity)
         shipment = Shipment(
             shipment_id=f"SHP-{self._config.seed}-{len(self._state.shipments) + 1}",
             source=source_warehouse,

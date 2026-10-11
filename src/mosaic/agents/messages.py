@@ -80,14 +80,16 @@ UNIMPLEMENTED_MEMORY_TOOLS: frozenset[str] = frozenset(
 _ROLE_TOOL_MAP: dict[AgentRole, frozenset[str]] = {
     # Demand: read-only demand history and forecast; no simulation/action tool.
     AgentRole.DEMAND: frozenset({"get_demand_history", "forecast_demand"}),
-    # Inventory: vi the ton kho/chuyen hang/reorder/transfer + what-if.
+    # Inventory: observed position/demand and read-only reorder/transfer quotes.
     AgentRole.INVENTORY: frozenset(
         {
             "get_inventory_state",
+            "get_demand_history",
+            "forecast_demand",
+            "get_open_orders",
             "get_shipments",
             "calculate_reorder_point",
             "calculate_transfer_cost",
-            "simulate_action",
         }
     ),
     # Supplier-Risk: supplier/order + what-if. Khong doc inventory truc tiep;
