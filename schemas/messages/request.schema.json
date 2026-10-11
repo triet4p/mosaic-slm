@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "AgentRole": {
+      "description": "Bon role khoa tai INITIALIZATION.md §2 va §20.",
+      "enum": [
+        "demand",
+        "inventory",
+        "supplier_risk",
+        "coordinator"
+      ],
+      "title": "AgentRole",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Yeu cau tu Coordinator toi mot analyst cho mot ngay mo phong.",
+  "properties": {
+    "message_type": {
+      "const": "request",
+      "default": "request",
+      "title": "Message Type",
+      "type": "string"
+    },
+    "message_id": {
+      "minLength": 1,
+      "title": "Message Id",
+      "type": "string"
+    },
+    "episode_seed": {
+      "title": "Episode Seed",
+      "type": "integer"
+    },
+    "day": {
+      "minimum": 1,
+      "title": "Day",
+      "type": "integer"
+    },
+    "from_role": {
+      "$ref": "#/$defs/AgentRole",
+      "default": "coordinator"
+    },
+    "to_role": {
+      "$ref": "#/$defs/AgentRole"
+    },
+    "instruction": {
+      "minLength": 1,
+      "title": "Instruction",
+      "type": "string"
+    }
+  },
+  "required": [
+    "message_id",
+    "episode_seed",
+    "day",
+    "to_role",
+    "instruction"
+  ],
+  "title": "AnalystRequest",
+  "type": "object"
+}

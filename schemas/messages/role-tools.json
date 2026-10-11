@@ -1,0 +1,32 @@
+{
+  "demand": [
+    "forecast_demand",
+    "get_demand_history",
+    "simulate_action"
+  ],
+  "inventory": [
+    "calculate_reorder_point",
+    "calculate_transfer_cost",
+    "get_inventory_state",
+    "get_shipments",
+    "simulate_action"
+  ],
+  "supplier_risk": [
+    "calculate_order_cost",
+    "get_open_orders",
+    "get_supplier_status",
+    "simulate_action"
+  ],
+  "coordinator": [
+    "calculate_order_cost",
+    "calculate_reorder_point",
+    "calculate_transfer_cost",
+    "forecast_demand",
+    "get_demand_history",
+    "get_inventory_state",
+    "get_open_orders",
+    "get_shipments",
+    "get_supplier_status",
+    "simulate_action"
+  ]
+}

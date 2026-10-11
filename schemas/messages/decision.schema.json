@@ -1,0 +1,329 @@
+{
+  "$defs": {
+    "AcceptBackorder": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "ACCEPT_BACKORDER",
+          "default": "ACCEPT_BACKORDER",
+          "title": "Type",
+          "type": "string"
+        },
+        "warehouse_id": {
+          "title": "Warehouse Id",
+          "type": "string"
+        },
+        "sku_id": {
+          "title": "Sku Id",
+          "type": "string"
+        },
+        "quantity": {
+          "exclusiveMinimum": 0,
+          "title": "Quantity",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "warehouse_id",
+        "sku_id",
+        "quantity"
+      ],
+      "title": "AcceptBackorder",
+      "type": "object"
+    },
+    "AdjustSafetyStock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "ADJUST_SAFETY_STOCK",
+          "default": "ADJUST_SAFETY_STOCK",
+          "title": "Type",
+          "type": "string"
+        },
+        "warehouse_id": {
+          "title": "Warehouse Id",
+          "type": "string"
+        },
+        "sku_id": {
+          "title": "Sku Id",
+          "type": "string"
+        },
+        "new_level": {
+          "minimum": 0,
+          "title": "New Level",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "warehouse_id",
+        "sku_id",
+        "new_level"
+      ],
+      "title": "AdjustSafetyStock",
+      "type": "object"
+    },
+    "AgentRole": {
+      "description": "Bon role khoa tai INITIALIZATION.md §2 va §20.",
+      "enum": [
+        "demand",
+        "inventory",
+        "supplier_risk",
+        "coordinator"
+      ],
+      "title": "AgentRole",
+      "type": "string"
+    },
+    "BusinessAction": {
+      "discriminator": {
+        "mapping": {
+          "ACCEPT_BACKORDER": "#/$defs/AcceptBackorder",
+          "ADJUST_SAFETY_STOCK": "#/$defs/AdjustSafetyStock",
+          "NO_ACTION": "#/$defs/NoAction",
+          "PLACE_ORDER": "#/$defs/PlaceOrder",
+          "SWITCH_SUPPLIER": "#/$defs/SwitchSupplier",
+          "TRANSFER_STOCK": "#/$defs/TransferStock"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/NoAction"
+        },
+        {
+          "$ref": "#/$defs/PlaceOrder"
+        },
+        {
+          "$ref": "#/$defs/TransferStock"
+        },
+        {
+          "$ref": "#/$defs/SwitchSupplier"
+        },
+        {
+          "$ref": "#/$defs/AdjustSafetyStock"
+        },
+        {
+          "$ref": "#/$defs/AcceptBackorder"
+        }
+      ]
+    },
+    "NoAction": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "NO_ACTION",
+          "default": "NO_ACTION",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "NoAction",
+      "type": "object"
+    },
+    "PlaceOrder": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "PLACE_ORDER",
+          "default": "PLACE_ORDER",
+          "title": "Type",
+          "type": "string"
+        },
+        "supplier_id": {
+          "title": "Supplier Id",
+          "type": "string"
+        },
+        "warehouse_id": {
+          "title": "Warehouse Id",
+          "type": "string"
+        },
+        "sku_id": {
+          "title": "Sku Id",
+          "type": "string"
+        },
+        "quantity": {
+          "exclusiveMinimum": 0,
+          "title": "Quantity",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "supplier_id",
+        "warehouse_id",
+        "sku_id",
+        "quantity"
+      ],
+      "title": "PlaceOrder",
+      "type": "object"
+    },
+    "SwitchSupplier": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "SWITCH_SUPPLIER",
+          "default": "SWITCH_SUPPLIER",
+          "title": "Type",
+          "type": "string"
+        },
+        "old_supplier": {
+          "title": "Old Supplier",
+          "type": "string"
+        },
+        "new_supplier": {
+          "title": "New Supplier",
+          "type": "string"
+        },
+        "sku_id": {
+          "title": "Sku Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "old_supplier",
+        "new_supplier",
+        "sku_id"
+      ],
+      "title": "SwitchSupplier",
+      "type": "object"
+    },
+    "ToolEvidence": {
+      "additionalProperties": false,
+      "description": "Mot tool call da chay, dung lam evidence cho recommendation/decision.\n\nHinh dang khop ``ToolCallRecord`` cua single-agent runner de tai dung\npattern hien co; ``tool`` phai thuoc ``KNOWN_TOOLS``.",
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "arguments": {
+          "additionalProperties": true,
+          "title": "Arguments",
+          "type": "object"
+        },
+        "success": {
+          "default": true,
+          "title": "Success",
+          "type": "boolean"
+        },
+        "result": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Result"
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "title": "ToolEvidence",
+      "type": "object"
+    },
+    "TransferStock": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "TRANSFER_STOCK",
+          "default": "TRANSFER_STOCK",
+          "title": "Type",
+          "type": "string"
+        },
+        "source_warehouse": {
+          "title": "Source Warehouse",
+          "type": "string"
+        },
+        "destination_warehouse": {
+          "title": "Destination Warehouse",
+          "type": "string"
+        },
+        "sku_id": {
+          "title": "Sku Id",
+          "type": "string"
+        },
+        "quantity": {
+          "exclusiveMinimum": 0,
+          "title": "Quantity",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_warehouse",
+        "destination_warehouse",
+        "sku_id",
+        "quantity"
+      ],
+      "title": "TransferStock",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Quyet dinh cuoi cua Coordinator; duy nhat co quyen thuc thi.",
+  "properties": {
+    "message_type": {
+      "const": "decision",
+      "default": "decision",
+      "title": "Message Type",
+      "type": "string"
+    },
+    "message_id": {
+      "minLength": 1,
+      "title": "Message Id",
+      "type": "string"
+    },
+    "episode_seed": {
+      "title": "Episode Seed",
+      "type": "integer"
+    },
+    "day": {
+      "minimum": 1,
+      "title": "Day",
+      "type": "integer"
+    },
+    "role": {
+      "$ref": "#/$defs/AgentRole",
+      "default": "coordinator"
+    },
+    "recommendation_ids": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Recommendation Ids",
+      "type": "array"
+    },
+    "rationale": {
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "final_actions": {
+      "items": {
+        "$ref": "#/$defs/BusinessAction"
+      },
+      "minItems": 1,
+      "title": "Final Actions",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/ToolEvidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    }
+  },
+  "required": [
+    "message_id",
+    "episode_seed",
+    "day",
+    "recommendation_ids",
+    "rationale",
+    "final_actions"
+  ],
+  "title": "CoordinatorDecision",
+  "type": "object"
+}
