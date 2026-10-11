@@ -22,7 +22,7 @@ Các quyết định Phase 0 đã được khóa tại [`INITIALIZATION.md`](./I
 
 ## Active Sprints
 
-- [Sprint 2](sprint-plans/sprint-2.md) — Phase 2: Multi-Agent Baseline — *Status: In Progress; tasks 1–2 complete, task 3 active*. Tasks 1–9 full với evidence PASS và Bronze checkpoint riêng; task 10 light; final differential review được giao.
+- [Sprint 2](sprint-plans/sprint-2.md) — Phase 2: Multi-Agent Baseline — *Status: In Progress; tasks 1–3 complete, task 4 active*. Tasks 1–9 full với evidence PASS và Bronze checkpoint riêng; task 10 light; final differential review được giao.
 
 ## Completed Sprints
 

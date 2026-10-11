@@ -14,9 +14,10 @@
   ],
   "supplier_risk": [
     "calculate_order_cost",
+    "get_inventory_state",
     "get_open_orders",
-    "get_supplier_status",
-    "simulate_action"
+    "get_shipments",
+    "get_supplier_status"
   ],
   "coordinator": [
     "calculate_order_cost",

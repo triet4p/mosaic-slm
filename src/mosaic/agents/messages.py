@@ -92,14 +92,15 @@ _ROLE_TOOL_MAP: dict[AgentRole, frozenset[str]] = {
             "calculate_transfer_cost",
         }
     ),
-    # Supplier-Risk: supplier/order + what-if. Khong doc inventory truc tiep;
-    # so lieu ton kho di qua Coordinator de giu ranh gioi trach nhiem.
+    # Supplier-Risk reads supplier/order/shipment evidence and validates an
+    # explicit inventory target; it cannot simulate outcomes or execute actions.
     AgentRole.SUPPLIER_RISK: frozenset(
         {
+            "get_inventory_state",
             "get_supplier_status",
             "get_open_orders",
+            "get_shipments",
             "calculate_order_cost",
-            "simulate_action",
         }
     ),
     # Coordinator: toan quyen 10 tool de tong hop va kiem chung what-if.

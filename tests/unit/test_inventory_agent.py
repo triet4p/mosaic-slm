@@ -333,6 +333,36 @@ def test_due_inbound_order_or_shipment_prevents_duplicate_transfer(inbound_kind:
     assert simulator.config.model_dump() == before_config
 
 
+def test_inbound_screening_uses_expected_arrival_without_hidden_actuals() -> None:
+    episode, simulator, tools = make_simulator()
+    set_available(simulator, "WH1", 5_000)
+    set_available(simulator, "WH2", 0)
+    simulator.state.suppliers["SUP_A"].current_lead_time = 1
+    hidden_order = simulator.place_order("SUP_A", "WH2", _SKU, 500)
+    assert hidden_order.actual_arrival is not None
+    assert hidden_order.actual_arrival > simulator.state.day
+    assert hidden_order.received_quantity == hidden_order.quantity
+    request = make_request(episode, _CURRENT_DAY, "req-inventory-observable-inbound")
+    before_state = simulator.state.model_dump()
+    before_config = simulator.config.model_dump()
+
+    recommendation = InventoryAgent().recommend(request, tools)
+
+    inbound_orders = next(
+        item for item in recommendation.evidence if item.tool == "get_open_orders"
+    )
+    rows = evidence_rows(inbound_orders, "orders")
+    published = next(row for row in rows if row.get("sku_id") == _SKU)
+    assert published["quantity"] == 500
+    assert published["expected_arrival"] == hidden_order.expected_arrival
+    assert published["actual_arrival"] is None
+    assert published["received_quantity"] == 0
+    assert recommendation.proposed_actions == [NoAction()]
+    assert "after inbound orders and shipments due by route arrival" in recommendation.summary
+    assert simulator.state.model_dump() == before_state
+    assert simulator.config.model_dump() == before_config
+
+
 def test_inventory_permissions_reject_action_simulation() -> None:
     assert allowed_tools(AgentRole.INVENTORY) == frozenset(
         {

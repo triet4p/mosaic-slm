@@ -36,3 +36,10 @@
 **Root cause:** The transfer-cost tool and `Simulator.dispatch_shipment` computed cost separately; only dispatch applied the active `TRANSPORT_DELAY` cost multiplier.
 **Fix / workaround:** Use the simulator's shared `calculate_transfer_cost` computation for both the tool quote and dispatched shipment, including current-day active disruption multipliers.
 **Watch out for:** Any state-dependent cost quote must match the actual dispatch path for ordinary, active-disruption, and expired-disruption states.
+
+## [2026-10-11] Raw model dumps leak predetermined future outcomes into agent evidence
+
+**Symptom:** `get_open_orders`/`get_shipments` returned full `model_dump` rows, so serialized `AnalystRecommendation.evidence` exposed future `actual_arrival` and pre-set `received_quantity` even though Supplier-Risk summaries never mentioned them.
+**Root cause:** The simulator assigns the delivery outcome at placement time, while the read tools published internal ground truth without an observation boundary.
+**Fix / workaround:** Mask unobserved `actual_arrival`/`received_quantity` at the shared read-tool surface and migrate inventory inbound screening to observable `expected_arrival`; keep simulator placement/replay logic untouched.
+**Watch out for:** Any future tool that serializes simulator models must distinguish planned/expected fields from observed-only realizations before storing them in Coordinator-facing evidence.

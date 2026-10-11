@@ -100,6 +100,38 @@ def test_get_supplier_status_returns_suppliers():
     assert {s["supplier_id"] for s in payload["suppliers"]} == {"SUP_A", "SUP_B"}
 
 
+def test_get_supplier_status_exposes_only_current_supplier_disruptions() -> None:
+    generated = EpisodeGenerator(SPEC).generate(seed=53)
+    active = DisruptionEvent(
+        disruption_id="active-delay",
+        type=DisruptionType.SUPPLIER_DELAY,
+        start_day=1,
+        end_day=2,
+        subject_type="supplier",
+        subject_id="SUP_A",
+        params={"extra_days": 3},
+    )
+    future = DisruptionEvent(
+        disruption_id="future-cancellation",
+        type=DisruptionType.SUPPLIER_CANCELLATION,
+        start_day=2,
+        end_day=3,
+        subject_type="supplier",
+        subject_id="SUP_A",
+    )
+    config = generated.config.model_copy(update={"disruptions": [active, future]})
+    episode = generated.model_copy(update={"config": config})
+    runner, context = make_runner(days=0, episode=episode)
+    context.simulator.advance_day()
+
+    payload = ok_payload(runner.run("get_supplier_status", {}))
+    suppliers = {row["supplier_id"]: row for row in payload["suppliers"]}
+
+    assert suppliers["SUP_A"]["current_lead_time"] == 6
+    assert suppliers["SUP_A"]["active_disruption_events"] == [active.model_dump(mode="json")]
+    assert suppliers["SUP_B"]["active_disruption_events"] == []
+
+
 def test_get_open_orders_returns_only_open_orders():
     runner, context = make_runner()
     ActionExecutor(context.simulator).apply(
@@ -119,6 +151,70 @@ def test_get_shipments_filters_by_status():
     )
     payload = ok_payload(runner.run("get_shipments", {"status": "IN_TRANSIT"}))
     assert len(payload["shipments"]) == 1
+
+
+def test_open_orders_and_shipments_mask_unobserved_actual_outcomes() -> None:
+    generated = EpisodeGenerator(SPEC).generate(seed=407)
+    config = generated.config.model_copy(update={"disruptions": []})
+    episode = generated.model_copy(update={"config": config})
+    simulator = Simulator(
+        episode.config,
+        supplier_behavior=SupplierBehavior(seed=episode.config.seed, stochastic=True),
+    )
+    simulator.advance_day()
+    simulator.state.suppliers["SUP_A"] = simulator.state.suppliers["SUP_A"].model_copy(
+        update={"reliability_score": 0.0}
+    )
+    order = simulator.place_order("SUP_A", "WH1", "SKU001", 5)
+    assert order.actual_arrival is not None
+    assert simulator.state.day is not None
+    assert order.actual_arrival > simulator.state.day
+    assert order.received_quantity == order.quantity
+    source = simulator.state.sku_states[("SKU001", "WH1")]
+    source.on_hand = 100
+    source.reserved = 0
+    shipment = simulator.dispatch_shipment("WH1", "WH2", "SKU001", 10)
+    assert shipment.actual_arrival is not None
+    assert shipment.actual_arrival > simulator.state.day
+    runner = ToolRunner(ToolContext(simulator=simulator))
+
+    orders_payload = ok_payload(runner.run("get_open_orders", {}))
+    published_order = next(
+        row for row in orders_payload["orders"] if row["order_id"] == order.order_id
+    )
+    assert published_order["quantity"] == order.quantity
+    assert published_order["expected_arrival"] == order.expected_arrival
+    assert published_order["status"] == "OPEN"
+    assert published_order["actual_arrival"] is None
+    assert published_order["received_quantity"] == 0
+
+    shipments_payload = ok_payload(runner.run("get_shipments", {}))
+    published_shipment = next(
+        row for row in shipments_payload["shipments"] if row["shipment_id"] == shipment.shipment_id
+    )
+    assert published_shipment["quantity"] == shipment.quantity
+    assert published_shipment["expected_arrival"] == shipment.expected_arrival
+    assert published_shipment["actual_arrival"] is None
+
+    identical = Simulator(
+        episode.config,
+        supplier_behavior=SupplierBehavior(seed=episode.config.seed, stochastic=True),
+    )
+    identical.advance_day()
+    identical.state.suppliers["SUP_A"] = identical.state.suppliers["SUP_A"].model_copy(
+        update={"reliability_score": 0.95}
+    )
+    other_order = identical.place_order("SUP_A", "WH1", "SKU001", 5)
+    assert other_order.actual_arrival != order.actual_arrival
+    other_runner = ToolRunner(ToolContext(simulator=identical))
+    other_payload = ok_payload(other_runner.run("get_open_orders", {}))
+    other_published = next(
+        row for row in other_payload["orders"] if row["order_id"] == other_order.order_id
+    )
+    assert other_published["actual_arrival"] is None
+    assert other_published["received_quantity"] == 0
+    assert other_published["expected_arrival"] == published_order["expected_arrival"]
+    assert other_published["quantity"] == published_order["quantity"]
 
 
 def test_calculate_reorder_point_matches_formula():

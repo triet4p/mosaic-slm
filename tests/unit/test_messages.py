@@ -14,6 +14,7 @@ from mosaic.agents.messages import (
     ToolEvidence,
     allowed_tools,
     check_correlation,
+    ensure_tool_allowed,
     executable_actions,
     role_tool_permissions,
 )
@@ -296,10 +297,13 @@ def test_role_permissions_cover_expected_sets_without_memory_tools() -> None:
     }
     assert set(permissions["supplier_risk"]) == {
         "calculate_order_cost",
+        "get_inventory_state",
         "get_open_orders",
+        "get_shipments",
         "get_supplier_status",
-        "simulate_action",
     }
+    with pytest.raises(ValueError, match="khong duoc dung tool"):
+        ensure_tool_allowed(AgentRole.SUPPLIER_RISK, "simulate_action")
     for tools in permissions.values():
         assert not set(tools) & set(UNIMPLEMENTED_MEMORY_TOOLS)
     assert allowed_tools(AgentRole.DEMAND) <= KNOWN_TOOLS

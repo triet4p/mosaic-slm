@@ -21,7 +21,13 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from mosaic.simulator.actions import ActionExecutor, BusinessAction
 from mosaic.simulator.core import Simulator
-from mosaic.simulator.models import OrderStatus, ShipmentStatus
+from mosaic.simulator.models import (
+    DisruptionType,
+    OrderStatus,
+    PurchaseOrder,
+    Shipment,
+    ShipmentStatus,
+)
 from mosaic.simulator.reward import RewardCalculator
 
 
@@ -187,15 +193,52 @@ def _get_supplier_status(
     context: ToolContext, params: GetSupplierStatusParams
 ) -> dict[str, object]:
     suppliers: list[dict[str, object]] = []
+    current_day = context.simulator.state.day
     for supplier in context.simulator.state.suppliers.values():
         if params.supplier_id is not None and supplier.supplier_id != params.supplier_id:
             continue
-        suppliers.append(supplier.model_dump(mode="json"))
+        supplier_data = supplier.model_dump(mode="json")
+        supplier_data["active_disruption_events"] = [
+            event.model_dump(mode="json")
+            for event in context.simulator.config.disruptions
+            if event.subject_type == "supplier"
+            and event.subject_id == supplier.supplier_id
+            and event.type in (DisruptionType.SUPPLIER_DELAY, DisruptionType.SUPPLIER_CANCELLATION)
+            and event.start_day <= current_day
+            and (event.end_day is None or current_day <= event.end_day)
+        ]
+        suppliers.append(supplier_data)
     return {"suppliers": suppliers}
+
+
+def _observable_order_row(order: PurchaseOrder, current_day: int) -> dict[str, object]:
+    """Publish only currently observable order fields.
+
+    Quantity, expected arrival, status, and placement day are planned/known
+    values. Actual arrival and received quantity are exposed only once the
+    simulator day has observed them; pending future outcomes stay masked so
+    serialized tool evidence cannot leak hidden realizations.
+    """
+    row = order.model_dump(mode="json")
+    actual = order.actual_arrival
+    if actual is None or actual > current_day:
+        row["actual_arrival"] = None
+        row["received_quantity"] = 0
+    return row
+
+
+def _observable_shipment_row(shipment: Shipment, current_day: int) -> dict[str, object]:
+    """Publish only currently observable shipment fields."""
+    row = shipment.model_dump(mode="json")
+    actual = shipment.actual_arrival
+    if actual is None or actual > current_day:
+        row["actual_arrival"] = None
+    return row
 
 
 def _get_open_orders(context: ToolContext, params: GetOpenOrdersParams) -> dict[str, object]:
     orders: list[dict[str, object]] = []
+    current_day = context.simulator.state.day
     for order in context.simulator.state.purchase_orders:
         if order.status in (OrderStatus.COMPLETED, OrderStatus.CANCELLED):
             continue
@@ -205,18 +248,19 @@ def _get_open_orders(context: ToolContext, params: GetOpenOrdersParams) -> dict[
             continue
         if params.supplier_id is not None and order.supplier_id != params.supplier_id:
             continue
-        orders.append(order.model_dump(mode="json"))
+        orders.append(_observable_order_row(order, current_day))
     return {"orders": orders}
 
 
 def _get_shipments(context: ToolContext, params: GetShipmentsParams) -> dict[str, object]:
     shipments: list[dict[str, object]] = []
+    current_day = context.simulator.state.day
     for shipment in context.simulator.state.shipments:
         if params.sku_id is not None and shipment.sku_id != params.sku_id:
             continue
         if params.status is not None and shipment.status is not params.status:
             continue
-        shipments.append(shipment.model_dump(mode="json"))
+        shipments.append(_observable_shipment_row(shipment, current_day))
     return {"shipments": shipments}
 
 
@@ -339,7 +383,8 @@ class ToolRunner:
         )
         self._register(
             "get_supplier_status",
-            "Lấy trạng thái supplier: lead time, reliability, cost, capacity, disruptions.",
+            "Supplier status: lead time, reliability, cost, capacity, and active "
+            "supplier disruptions for the current day.",
             GetSupplierStatusParams,
             _get_supplier_status,
         )

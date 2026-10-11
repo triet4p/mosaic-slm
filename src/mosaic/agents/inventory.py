@@ -542,7 +542,6 @@ class InventoryAgent:
             sku_id = order.get("sku_id")
             warehouse_id = order.get("warehouse_id")
             quantity = order.get("quantity")
-            received = order.get("received_quantity")
             expected = order.get("expected_arrival")
             actual = order.get("actual_arrival")
             if (
@@ -551,10 +550,6 @@ class InventoryAgent:
                 or not isinstance(quantity, int)
                 or isinstance(quantity, bool)
                 or quantity <= 0
-                or not isinstance(received, int)
-                or isinstance(received, bool)
-                or received < 0
-                or received > quantity
                 or not isinstance(expected, int)
                 or isinstance(expected, bool)
                 or (
@@ -562,12 +557,13 @@ class InventoryAgent:
                 )
             ):
                 raise ValueError("get_open_orders returned an invalid order")
-            arrival = actual if actual is not None else expected
-            if arrival > current_day:
-                inbound_quantity = received if received > 0 else quantity if status == "OPEN" else 0
+            if actual is not None and actual <= current_day:
+                continue
+            if expected > current_day:
+                inbound_quantity = quantity if status == "OPEN" else 0
                 if inbound_quantity > 0:
                     inbound.setdefault((sku_id, warehouse_id), []).append(
-                        (arrival, inbound_quantity)
+                        (expected, inbound_quantity)
                     )
 
         for raw_shipment in cast(Sequence[object], shipments["shipments"]):
@@ -595,8 +591,9 @@ class InventoryAgent:
                 )
             ):
                 raise ValueError("get_shipments returned an invalid shipment")
-            arrival = actual if actual is not None else expected
-            inbound.setdefault((sku_id, destination), []).append((arrival, quantity))
+            if actual is not None and actual <= current_day:
+                continue
+            inbound.setdefault((sku_id, destination), []).append((expected, quantity))
         return inbound
 
     @staticmethod

@@ -49,14 +49,29 @@ chung bang `role_tool_permissions()`:
 - `inventory`: `calculate_reorder_point`, `calculate_transfer_cost`,
   `forecast_demand`, `get_demand_history`, `get_inventory_state`,
   `get_open_orders`, `get_shipments` (read-only; no `simulate_action`).
-- `supplier_risk`: `calculate_order_cost`, `get_open_orders`,
-  `get_supplier_status`, `simulate_action`.
+- `supplier_risk`: `calculate_order_cost`, `get_inventory_state`,
+  `get_open_orders`, `get_shipments`, `get_supplier_status` (read-only; inventory
+  state validates an explicitly requested SKU/warehouse only; no simulation or execution).
 - `coordinator`: toan quyen 10 tool da trien khai.
 
 `ToolEvidence` chi chap nhan 10 tool cua `ToolRunner` (Sprint 1, task 10).
 Memory tools Phase 3 (`query_shared_graph`, `write_private_memory`,
 `propose_shared_fact`) chua trien khai nen bi tu choi o bien validate; tool
 la bi tu choi tuong tu.
+
+`get_supplier_status` includes `active_disruption_events` on each supplier row.
+The field contains only supplier delay/cancellation events active on the
+simulator's current day; future scheduled disruptions are not exposed as
+current evidence.
+
+`get_open_orders` and `get_shipments` publish only currently observable
+fields. Planned values (`quantity`, `expected_arrival`, `status`,
+`placed_at`/`dispatch_time`) remain available for in-flight planning. Each
+row's `actual_arrival` is exposed only after the simulator day has observed
+it; pending future arrivals stay `None`, and an unobserved order's
+`received_quantity` stays `0`. Inventory inbound screening uses the
+observable `expected_arrival` estimate and does not consume hidden actual
+outcomes.
 
 ## Published schemas
 
@@ -172,3 +187,53 @@ from mosaic.agents.inventory import InventoryAgent
 
 recommendation = InventoryAgent().recommend(request, tool_runner)
 ```
+
+## Supplier-Risk Agent
+
+`SupplierRiskAgent` (`mosaic.agents.supplier_risk`) is the deterministic,
+non-LLM supplier analyst. Like the Demand and Inventory agents, it accepts an
+`AnalystRequest` and active `ToolRunner`, and returns the existing
+`AnalystRecommendation` contract.
+
+The request must target `supplier_risk` and match the active seed/day (a day-1
+request may be made before the first advance). The agent reads supplier status,
+open orders, and shipments through their existing tools. `get_supplier_status`
+provides current lead time, base lead time, reliability, per-order capacity,
+SKU support, and `active_disruption_events`; the latter contains only supplier
+delay/cancellation events active on the simulator's current day. Future
+scheduled disruptions are not used. The analyst reports current shipment
+statuses without using hidden future arrival outcomes. Open-order reads exclude
+completed/cancelled orders, so the agent reports active cancellation risk from
+current disruption evidence and does not claim a historical cancellation it
+cannot observe.
+
+`AnalystRequest.instruction` carries actionable context as explicit key-value
+tokens, for example `sku_id=SKU001; warehouse_id=WH1; quantity=50;
+supplier_id=SUP_A`. The optional `supplier_id` is a preferred supplier. The
+analyst never infers an order quantity. Before proposing an order, it confirms
+the exact SKU/warehouse pair with `get_inventory_state`, verifies SKU support
+and requested quantity against actual supplier status/capacity, and gets the
+selected candidates' cost from `calculate_order_cost`. It does not reimplement
+the simulator's order-cost formula or use inventory values to derive quantity.
+
+An explicitly requested supplier remains preferred unless an eligible
+alternative is no worse on observed lead time and reliability and strictly
+better on at least one observed risk signal. A supplier with an active
+cancellation disruption is not proposed. If no supplier was specified, viable
+options are selected deterministically by active delay, current lead time,
+reliability, tool-quoted order cost, then supplier ID. Missing/ambiguous context,
+an unconfirmed SKU/warehouse, unsupported SKU, insufficient capacity, failed
+required evidence, or missing cost quote returns an explicit `NO_ACTION`.
+
+The agent records every tool result in recommendation evidence, remains
+correlated to the request/episode/day, and has no `ActionExecutor` access.
+Supplier-Risk permissions reject `simulate_action` at both tool-call and
+recommendation-evidence validation boundaries; only the Coordinator can execute
+an accepted action.
+
+```python
+from mosaic.agents.supplier_risk import SupplierRiskAgent
+
+recommendation = SupplierRiskAgent().recommend(request, tool_runner)
+```
+
