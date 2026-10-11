@@ -7,6 +7,7 @@
 - Added a deterministic, read-only Inventory agent that assesses tool-backed stockout risk and proposes economically screened transfers through the existing recommendation contract.
 - Added a deterministic, read-only Demand agent that reports tool-backed short-horizon forecasts and demand-shift risks through the existing recommendation contract.
 - Added a deterministic, read-only Supplier-Risk agent that uses live supplier, disruption, order, shipment, inventory-target, and order-cost evidence to assess risk and propose only explicitly requested, capacity-valid orders.
+- Added a deterministic, non-LLM sequential Coordinator policy that calls Demand, Inventory, and conditional Supplier-Risk analysts, resolves same-destination conflicts, validates final actions on a simulator copy, and stops explicitly with `NO_ACTION` when analyst/revision budgets are exhausted.
 
 ### Changed
 

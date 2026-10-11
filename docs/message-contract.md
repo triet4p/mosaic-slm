@@ -237,3 +237,33 @@ from mosaic.agents.supplier_risk import SupplierRiskAgent
 recommendation = SupplierRiskAgent().recommend(request, tool_runner)
 ```
 
+## Coordinator Agent
+
+`CoordinatorAgent` (`mosaic.agents.coordinator`) is the deterministic, non-LLM
+sequential baseline for the coordinator role. It accepts the active episode
+seed/day and `ToolRunner`, then returns `CoordinationResult` with every
+`AnalystRequest`/`AnalystRecommendation`, the final `CoordinatorDecision`, the
+`decided`/`bounded_stop` outcome, analyst/revision counts, and a control trace.
+
+The policy calls Demand, then Inventory, then Supplier-Risk only when current
+`get_inventory_state` shows a safety-stock shortfall with an explicit
+`sku_id`/`warehouse_id`/`quantity` context; it never fabricates IDs or hidden
+future data. Later Supplier-Risk candidates are revisions bounded by
+`max_analyst_calls` (default 6) and `max_revisions` (default 2). Every
+recommendation is checked for episode/day correlation, request linkage, role,
+and evidence permissions before synthesis; stale or invalid proposals cannot
+contribute. Same-SKU/destination conflicts keep the cheapest tool-quoted action
+to avoid double supply, and feasibility plus action interactions are validated
+on a deep simulator copy with the real `ActionExecutor`, never on live state.
+Exhausted budgets or no valid recommendation produce an explicit bounded stop
+with `NO_ACTION`, not invented success. Only `final_actions` may be executed.
+
+```python
+from mosaic.agents.coordinator import CoordinatorAgent
+
+result = CoordinatorAgent().coordinate(episode_seed=seed, day=day, tools=tool_runner)
+for action in executable_actions(result.decision):
+    executor.apply(action)
+```
+
+
